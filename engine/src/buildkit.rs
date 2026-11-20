@@ -782,6 +782,11 @@ mod tests {
         registry.finish();
     }
 
+    // The context snapshot this refuses is Linux-only: it pins the tree with
+    // `openat2` and reads entries back through procfs, and every other platform
+    // gets `ContextError::Unsupported`. Without the cfg the test asserts a
+    // Linux `InvalidInput` against a non-Linux `Context` refusal.
+    #[cfg(target_os = "linux")]
     #[tokio::test]
     async fn oversized_ignore_files_are_refused_before_dispatch() {
         let dir = tempfile::tempdir().unwrap();

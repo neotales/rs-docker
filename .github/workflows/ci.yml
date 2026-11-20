@@ -12,6 +12,20 @@ name: ci
 #
 # `--all-features` enables every feature at once: `templates` on bake and
 # compose, `ssh` and `tls` on the engine.
+#
+# Where the steps run, and why they are not identical on every platform:
+#
+# - Format, Clippy, both doctest passes and the documentation build run on all
+#   three platforms. Clippy is `--all-targets`, so it type-checks every
+#   integration test for that platform even where the tests are not run; that
+#   is what catches a `cfg(unix)` item going dead on Windows.
+# - The test suite itself runs on Linux only. The engine's socket-level
+#   fixtures are inconclusive off Linux: they fill a loopback socket until a
+#   write returns `WouldBlock`, and macOS does not reach that state (its
+#   `EAGAIN` shows up as a `Transport` error instead), so 39 of them fail with
+#   "inconclusive" or a timeout rather than a library assertion. Running them
+#   elsewhere would be a red gate that says nothing about the crates. This is a
+#   coverage gap, not a pass: see the repository report.
 
 on:
   push:
@@ -56,7 +70,10 @@ jobs:
       - name: Clippy
         run: cargo clippy --workspace --all-targets --all-features -- -D warnings
 
+      # Linux only, for the reason in the header. Every other platform still
+      # compiles these targets in the Clippy step above.
       - name: Test
+        if: runner.os == 'Linux'
         run: cargo test --workspace --all-targets --all-features
 
       # Separate from the test step above, because `--all-targets` selects the
