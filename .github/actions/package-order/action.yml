@@ -1,0 +1,79 @@
+name: Package order
+description: Write the publishable workspace packages in dependency order to packages.tsv.
+
+# The release workflow must publish every publishable crate and nothing else.
+# `cargo publish --workspace` would do neither: it publishes in one order and
+# fails the whole run when one crate is already on the index. This action reads
+# `cargo metadata`, drops anything with `publish = false`, and topologically
+# sorts the rest by their edges to other packages in this workspace. The field
+# order is:
+#
+#   name <TAB> version <TAB> manifest path <TAB> comma-separated workspace deps
+#
+# A helper crate belongs in this repository only if it is marked
+# `publish = false`; then it is absent from the list. A crate that is missing
+# from the list for another reason would never be published, so the action
+# prints every member with its publishability for the reader to check.
+
+runs:
+  using: composite
+  steps:
+    - name: Enumerate publishable packages in dependency order
+      shell: bash
+      run: |
+        set -euo pipefail
+        cargo metadata --no-deps --format-version 1 > metadata.json
+        python3 - <<'PY'
+        import json
+        import sys
+
+        with open("metadata.json", encoding="utf-8") as handle:
+            packages = json.load(handle)["packages"]
+
+        if not packages:
+            sys.exit("cargo metadata listed no packages")
+
+        # `publish` is null when the crate may be published, and an empty list
+        # when `publish = false` says it may not.
+        def publishable(package):
+            return package.get("publish") is None or package.get("publish") != []
+
+        members = {package["name"]: package for package in packages}
+        for package in packages:
+            state = "publishable" if publishable(package) else "not publishable"
+            print(f"{package['name']}: {state}")
+
+        publishable_names = {name for name, package in members.items() if publishable(package)}
+        if not publishable_names:
+            sys.exit("no publishable package found")
+
+        dependencies = {}
+        for name in publishable_names:
+            edges = set()
+            for dependency in members[name]["dependencies"]:
+                target = dependency["name"]
+                if target in publishable_names:
+                    edges.add(target)
+            dependencies[name] = edges
+
+        ordered = []
+        remaining = dict(dependencies)
+        while remaining:
+            ready = sorted(name for name, edges in remaining.items() if not edges - set(ordered))
+            if not ready:
+                sys.exit(f"dependency cycle among workspace packages: {sorted(remaining)}")
+            ordered.extend(ready)
+            for name in ready:
+                del remaining[name]
+
+        with open("packages.tsv", "w", encoding="utf-8") as handle:
+            for name in ordered:
+                package = members[name]
+                manifest = package["manifest_path"]
+                deps = ",".join(sorted(dependencies[name]))
+                handle.write(f"{name}\t{package['version']}\t{manifest}\t{deps}\n")
+
+        print("publish order:")
+        for name in ordered:
+            print(f"  {name} {members[name]['version']}")
+        PY

@@ -1,0 +1,265 @@
+name: release
+
+# Publishing is driven by a tag, never by a branch. The tag must equal `v` plus
+# the version every publishable crate in this repository carries, so the thing
+# that ran is a thing that can be named.
+#
+# The five crates are published as one set and share a version: an engine
+# release that needs a new `neotales-docker-buildkit` has to name the same
+# version, and a tag that named two versions would not describe one tree.
+#
+# Trusted publishing: the publish job asks crates.io for a short-lived token
+# over OIDC. There is no CARGO_REGISTRY_TOKEN secret in this repository.
+# crates.io cannot bootstrap a crate this way. The first upload of a new crate
+# is manual, through ~/work/rs/publish.sh, and the release run for that version
+# then skips it because the version is already on the index. See RELEASE.md.
+#
+# The publish job sets no GitHub environment on purpose. The trusted publisher
+# saved on crates.io for this organisation has an empty environment, and
+# crates.io compares that field with the job's, so an environment on either
+# side alone fails the token exchange.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
+
+jobs:
+  # Runs on both triggers. On workflow_dispatch this job is the whole release:
+  # checks and dry runs, never a real publish.
+  check:
+    name: pre-publish checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: ./.github/actions/setup-rust
+        with:
+          cache-key: release
+
+      - uses: ./.github/actions/package-order
+
+      - name: Format
+        run: cargo fmt --all -- --check
+
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+
+      - name: Test
+        run: cargo test --workspace --all-targets --all-features
+
+      # `--all-targets` skips doctests, so they are a step of their own. Every
+      # job that runs tests runs them, including this one, because a doctest
+      # that no longer compiles is a broken crate on crates.io. Both feature
+      # sets: a caller who takes the crates as published gets the default one.
+      - name: Doctests
+        run: cargo test --workspace --doc --all-features
+
+      - name: Doctests with the default features
+        run: cargo test --workspace --doc
+
+      # Every publishable package is packaged and verified, in dependency order.
+      #
+      # A package that depends on another package in this repository cannot be
+      # verified against the registry until that sibling's version is on the
+      # index, which happens during this release rather than before it. That one
+      # failure is expected and tolerated, and only for a dependency named in
+      # `packages.tsv`. Any other failure fails the job. See RELEASE.md.
+      - name: Package without publishing
+        run: |
+          set -euo pipefail
+
+          # True only when the failure is the index not yet holding a version of
+          # a sibling crate that this same tag is about to upload.
+          expected_index_gap() {
+            local output="$1" deps="$2" dep
+            local name
+            for name in $(printf '%s' "$deps" | tr ',' ' '); do
+              [ -n "$name" ] || continue
+              if printf '%s\n' "$output" | grep -F "no matching package named \`$name\` found" >/dev/null; then
+                return 0
+              fi
+              if printf '%s\n' "$output" | grep -F 'failed to select a version for the requirement' >/dev/null \
+                && printf '%s\n' "$output" | grep -F "\`$name\`" >/dev/null \
+                && printf '%s\n' "$output" | grep -F "candidate versions found which didn't match" >/dev/null; then
+                return 0
+              fi
+            done
+            return 1
+          }
+
+          while IFS=$'\t' read -r package version manifest deps; do
+            echo "::group::dry run $package $version"
+            set +e
+            output=$(cargo publish -p "$package" --dry-run --locked 2>&1)
+            status=$?
+            set -e
+            printf '%s\n' "$output"
+            echo "::endgroup::"
+            if [ "$status" -eq 0 ]; then
+              continue
+            fi
+            if expected_index_gap "$output" "$deps"; then
+              echo "expected: $package cannot be verified until this release uploads its sibling"
+              continue
+            fi
+            echo "::error::package dry run failed for $package for a reason other than an unpublished sibling version"
+            exit 1
+          done < packages.tsv
+
+  version:
+    name: tag matches every crate version
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # The versions come from the manifests, not from a list in this file, so a
+      # crate that is added later is covered without an edit here.
+      - name: Compare the tag with every publishable manifest
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          cargo metadata --no-deps --format-version 1 > metadata.json
+          python3 - <<'PY'
+          import json
+          import os
+          import sys
+
+          with open("metadata.json", encoding="utf-8") as handle:
+              packages = json.load(handle)["packages"]
+
+          def publishable(package):
+              return package.get("publish") is None or package.get("publish") != []
+
+          versions = {}
+          for package in packages:
+              if not publishable(package):
+                  print(f"{package['name']}: not publishable, skipped")
+                  continue
+              versions[package["name"]] = package["version"]
+
+          if not versions:
+              sys.exit("no publishable package found")
+
+          tag = os.environ["TAG"]
+          print(f"tag: {tag}")
+          for name, version in versions.items():
+              print(f"{name}: {version}")
+
+          distinct = set(versions.values())
+          if len(distinct) != 1:
+              print(f"::error::the crates carry different versions: {versions}")
+              sys.exit(1)
+
+          expected = f"v{distinct.pop()}"
+          if tag != expected:
+              print(f"::error::tag {tag} does not match {expected}")
+              sys.exit(1)
+          PY
+
+  publish:
+    name: publish to crates.io
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [check, version]
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    # No GitHub environment, deliberately. The trusted publisher stored on
+    # crates.io for this organisation has an empty environment, and crates.io
+    # compares that field with the job's. Setting `environment: release` here
+    # makes the OIDC token exchange fail with no other symptom. If someone ever
+    # does set an environment name on crates.io, this job must set that exact
+    # name. See RELEASE.md.
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: ./.github/actions/setup-rust
+        with:
+          cache-key: release-publish
+
+      - uses: ./.github/actions/package-order
+
+      # Fails when the crate does not exist on crates.io yet, or when the
+      # trusted publisher does not match this repository, this workflow file and
+      # an empty environment. That is the intended failure: there is nothing to
+      # fall back to, and no token to widen. See RELEASE.md for the first
+      # publish.
+      - name: Exchange the OIDC token for a crates.io token
+        id: auth
+        uses: rust-lang/crates-io-auth-action@3268eb413133e2960fa4ae0e963ca76380c54cd9 # v1.0.6
+
+      # One exchange covers every crate in this repository whose trusted
+      # publisher matches release.yml and an empty environment. Each package is
+      # named individually, in the order `packages.tsv` gives, so a crate marked
+      # `publish = false` is never uploaded by accident. A dependency is
+      # uploaded before the crate that names it; the index usually lags by a few
+      # seconds, which the retry loop absorbs. A re-run skips a version already
+      # on crates.io. Do not republish, and do not delete or move the tag.
+      - name: Publish every package in dependency order
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
+        run: |
+          set -euo pipefail
+
+          registry_has() {
+            local crate="$1" version="$2" code
+            code=$(curl -sS -o /dev/null -w '%{http_code}' \
+              -H 'User-Agent: neotales-release (https://github.com/neotales)' \
+              "https://crates.io/api/v1/crates/${crate}/${version}" || echo 000)
+            [ "$code" = "200" ]
+          }
+
+          publish_crate() {
+            local package="$1" version="$2"
+            local attempt output status
+            for attempt in $(seq 1 15); do
+              set +e
+              output=$(cargo publish -p "$package" --locked 2>&1)
+              status=$?
+              set -e
+              printf '%s\n' "$output"
+              if [ "$status" -eq 0 ]; then
+                echo "uploaded $package $version"
+                return 0
+              fi
+              if printf '%s\n' "$output" | grep -F 'already uploaded' >/dev/null; then
+                echo "$package $version already uploaded; not publishing again"
+                return 0
+              fi
+              if printf '%s\n' "$output" | grep -F 'failed to select a version for the requirement' >/dev/null \
+                || printf '%s\n' "$output" | grep -Eiq '429|rate limit|too many requests'; then
+                echo "retryable publish failure for $package (attempt $attempt); waiting 20s"
+                sleep 20
+                continue
+              fi
+              echo "publish of $package failed"
+              return 1
+            done
+            echo "publish of $package did not succeed after retries"
+            return 1
+          }
+
+          while IFS=$'\t' read -r package version manifest deps; do
+            if registry_has "$package" "$version"; then
+              echo "$package $version is already on crates.io; not publishing again"
+              continue
+            fi
+            publish_crate "$package" "$version"
+          done < packages.tsv
