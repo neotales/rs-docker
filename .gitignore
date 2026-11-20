@@ -1,0 +1,11 @@
+/target
+
+# Cargo.lock is committed on purpose. These are libraries, and a lockfile in
+# the repository is what makes the scheduled `cargo audit` and `cargo deny`
+# runs describe the same graph a release builds from.
+**/*.rs.bk
+
+# Written by the `package-order` action and by a developer running the same
+# `cargo metadata` by hand. Both are outputs, not sources.
+/packages.tsv
+/metadata.json

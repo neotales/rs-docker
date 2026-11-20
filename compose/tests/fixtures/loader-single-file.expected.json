@@ -1,0 +1,200 @@
+{
+  "name": "provenance",
+  "services": {
+    "app": {
+      "image": "alpine:3",
+      "command": [],
+      "entrypoint": [],
+      "environment": {},
+      "ports": [],
+      "volumes": [
+        {
+          "kind": "bind",
+          "source": "./source",
+          "target": "/data",
+          "read_only": false,
+          "subtree": {
+            "bind": {}
+          },
+          "short_form": true
+        },
+        {
+          "kind": "bind",
+          "source": "./extra",
+          "target": "/extra",
+          "read_only": false,
+          "subtree": {
+            "bind": {}
+          },
+          "short_form": true
+        }
+      ],
+      "depends_on": [],
+      "networks": [],
+      "labels": {},
+      "profiles": [],
+      "replicas": 1,
+      "build": {
+        "context": "./app",
+        "dockerfile": "Dockerfile.custom",
+        "target": null,
+        "platform": null,
+        "no_cache": false,
+        "arguments": {},
+        "labels": {},
+        "cache_from": [],
+        "buildkit": []
+      },
+      "tty": false,
+      "stdin_open": false,
+      "privileged": false,
+      "configs": [],
+      "secrets": [],
+      "env_file": [
+        "./base.env",
+        "./second.env"
+      ],
+      "label_file": [
+        "./base.labels"
+      ],
+      "expose": [],
+      "extra_hosts": [],
+      "cap_add": [],
+      "cap_drop": [],
+      "read_only": false,
+      "init": false,
+      "dns": [],
+      "dns_search": [],
+      "dns_opt": [],
+      "group_add": [],
+      "sysctls": {},
+      "ulimits": [],
+      "security_opt": [],
+      "annotations": {},
+      "tmpfs": {},
+      "devices": [
+        {
+          "source": "./device",
+          "target": "/dev/test",
+          "permissions": "rwm"
+        }
+      ],
+      "oom_kill_disable": false,
+      "blkio_config": {
+        "weight_device": [
+          {
+            "path": "./disk",
+            "value": 100
+          }
+        ]
+      },
+      "credential_spec": {
+        "file": "./cred.json"
+      }
+    },
+    "base": {
+      "image": "alpine:3",
+      "command": [],
+      "entrypoint": [],
+      "environment": {},
+      "ports": [],
+      "volumes": [
+        {
+          "kind": "bind",
+          "source": "./source",
+          "target": "/data",
+          "read_only": false,
+          "subtree": {
+            "bind": {}
+          },
+          "short_form": true
+        }
+      ],
+      "depends_on": [],
+      "networks": [],
+      "labels": {},
+      "profiles": [],
+      "replicas": 1,
+      "build": {
+        "context": "./app",
+        "dockerfile": "Dockerfile.custom",
+        "target": null,
+        "platform": null,
+        "no_cache": false,
+        "arguments": {},
+        "labels": {},
+        "cache_from": [],
+        "buildkit": []
+      },
+      "tty": false,
+      "stdin_open": false,
+      "privileged": false,
+      "configs": [],
+      "secrets": [],
+      "env_file": [
+        "./base.env",
+        "./second.env"
+      ],
+      "label_file": [
+        "./base.labels"
+      ],
+      "expose": [],
+      "extra_hosts": [],
+      "cap_add": [],
+      "cap_drop": [],
+      "read_only": false,
+      "init": false,
+      "dns": [],
+      "dns_search": [],
+      "dns_opt": [],
+      "group_add": [],
+      "sysctls": {},
+      "ulimits": [],
+      "security_opt": [],
+      "annotations": {},
+      "tmpfs": {},
+      "devices": [
+        {
+          "source": "./device",
+          "target": "/dev/test",
+          "permissions": "rwm"
+        }
+      ],
+      "oom_kill_disable": false,
+      "blkio_config": {
+        "weight_device": [
+          {
+            "path": "./disk",
+            "value": 100
+          }
+        ]
+      },
+      "credential_spec": {
+        "file": "./cred.json"
+      }
+    }
+  },
+  "networks": {},
+  "volumes": {},
+  "configs": {
+    "config": {
+      "name": "config",
+      "external": false,
+      "file": "./config.txt",
+      "labels": {}
+    }
+  },
+  "secrets": {
+    "secret": {
+      "name": "secret",
+      "external": false,
+      "file": "./secret.txt",
+      "labels": {}
+    }
+  },
+  "profiles": [],
+  "dependency_order": [
+    "app",
+    "base"
+  ]
+}

@@ -1,0 +1,136 @@
+[package]
+name = "neotales-docker"
+description = "Repository-native Docker Engine API client"
+version = "0.0.0-alpha.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+readme = "README.md"
+keywords = ["docker", "engine-api", "containers", "oci", "api-client"]
+categories = ["api-bindings", "network-programming"]
+
+[features]
+default = []
+# Talk to a remote Docker daemon over an SSH connection rather than a socket.
+#
+# Unix only. The transport spawns the system `ssh` binary for `docker system
+# dial-stdio`, so it inherits the invoking user's `ssh_config`, known-hosts
+# files, identity discovery, and host-key policy. Leaving the decision there is
+# deliberate: the previous `openssh`-crate connector always passed
+# `StrictHostKeyChecking=accept-new`, which silently trusted unknown hosts. On
+# other platforms the feature is accepted and an `ssh://` endpoint is refused
+# when a client is built, rather than failing the build.
+#
+ssh = ["dep:rsa"]
+# TLS for a remote daemon, and a certificate authority to verify it against.
+tls = [
+    "dep:hyper-rustls",
+    "dep:rustls",
+    "dep:rustls-native-certs",
+    "dep:rustls-pki-types",
+    "dep:tokio-rustls",
+]
+
+[dependencies]
+base64.workspace = true
+bytes.workspace = true
+# The BuildKit crate is the other crate in this repository. The version is
+# required as well as the path: cargo ignores the version while the path
+# resolves, and refuses to publish this crate without it.
+neotales-docker-buildkit = { path = "../buildkit", version = "=0.0.0-alpha.0" }
+futures-core.workspace = true
+futures-util.workspace = true
+getrandom.workspace = true
+h2 = "0.4"
+http.workspace = true
+http-body-util.workspace = true
+hyper.workspace = true
+# The shared entry carries the client-legacy, http1 and tokio features that the
+# requesters in this workspace need. The proxy layer is this crate's own, so the
+# extra is declared here rather than forced on everyone through the shared table.
+hyper-util = { workspace = true, features = ["client-proxy"] }
+# The TLS stack is declared here rather than in the workspace table because this
+# crate is its only consumer in this repository. A shared entry would read as a
+# decision the whole workspace made, and nobody else here has made one.
+hyper-rustls = { version = "0.27", default-features = false, features = ["http1", "native-tokio", "ring", "tls12"], optional = true }
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"], optional = true }
+rustls-native-certs = { version = "0.8", optional = true }
+rustls-pki-types = { version = "1.7", features = ["std"], optional = true }
+# The raw transport drives its own TLS handshake over a per-request duplex, so it
+# needs the async adapter for its rustls configuration. It is optional because
+# only the `tls` feature links a TLS stack at all.
+tokio-rustls = { version = "0.26", default-features = false, features = ["ring", "tls12"], optional = true }
+# The SSH wire implementation, used by the owned transport's managed
+# `docker system dial-stdio` mechanism. It is the same crate the `ssh` area
+# publishes, not a fork of it. The BuildKit SSH agent provider also uses it,
+# independently of the managed-transport `ssh` feature.
+#
+# The version is the one on crates.io. The source checkout this crate was
+# imported from named a later prerelease of the same code by path; a path that
+# leaves this repository cannot be published, and the registry is the only
+# honest edge.
+neotales-ssh = "0.0.0-alpha.0"
+# Only for the RSA branch of `PublicKeySigner`, which takes `rsa::BigUint`
+# components. It is the same version `neotales-ssh` is built against, so the
+# types unify; declaring it here is cheaper than depending on the whole crypto
+# area for three big integers.
+rsa = { workspace = true, optional = true }
+serde.workspace = true
+serde_json.workspace = true
+regex = "1"
+sha2.workspace = true
+tar.workspace = true
+# A regular dependency rather than a development one, in the source manifest as
+# well: a layer is unpacked into a temporary directory that a caller can name.
+tempfile.workspace = true
+# The shared entry carries macros, rt, sync and time. This crate additionally needs
+# the filesystem, I/O, network and process drivers.
+tokio = { workspace = true, features = ["fs", "io-util", "net", "process"] }
+tokio-util.workspace = true
+tower-service.workspace = true
+url.workspace = true
+zip.workspace = true
+zeroize.workspace = true
+
+[target.'cfg(target_os = "linux")'.dependencies]
+rustix = { version = "1.1.6", features = ["fs"] }
+
+# The SSH transport spawns the system `ssh` binary, so no SSH library is
+# declared per-target here. `neotales-ssh`, the managed mechanism, builds on
+# every platform the crate supports.
+
+[dev-dependencies]
+# The opt-in `test-support` feature exposes a read-only protected-packet
+# counter for shutdown tests and a controlled-peer rekey hook for pump tests.
+# Cargo feature unification depends on resolver and dependency kind; a
+# dev-dependency is not a security boundary. Review the capability before
+# enabling it in production. It does not alter the runtime gate.
+neotales-ssh = { version = "0.0.0-alpha.0", features = ["test-support"] }
+# The wire-level suite in `tests/registry_credential_headers.rs` drives the
+# image-transfer operations, whose request bodies are streams. The crate already
+# depends on these three; they are named again here because an integration test
+# can only use this crate's public API and its own dev-dependencies.
+base64.workspace = true
+# The build wire suite constructs the owned operation directly for its
+# record-bound case, which needs the request body's `Bytes` chunk type, and it
+# decodes the recorded query string.
+bytes.workspace = true
+url.workspace = true
+serde_json.workspace = true
+futures-util.workspace = true
+rcgen = { workspace = true, features = ["zeroize"] }
+# The local service-update and node-write tests install a TRACE capture to prove
+# the owned routes do not log the buffered service environment, registry
+# credential, node name, or labels.
+tracing-subscriber = "0.3"
+# `rt-multi-thread` for the wire-level suite: its fixture waits on a blocking
+# channel while the client's request task runs, which a current-thread runtime
+# cannot do because the waiting task and the request task share one thread.
+tokio = { workspace = true, features = ["rt-multi-thread", "io-util", "test-util"] }
+# Tests use a capturing logger and explicit log controls to detect leaked data.
+log = "0.4"
+
+[lints]
+workspace = true

@@ -1,0 +1,38 @@
+[package]
+name = "neotales-docker-bake"
+description = "Normalized Docker Bake document parsing and target planning"
+version = "0.0.0-alpha.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+readme = "README.md"
+keywords = ["docker", "bake", "build", "hcl", "oci"]
+categories = ["config", "compilers"]
+
+[features]
+default = []
+templates = ["dep:neotales-gotmpl", "dep:neotales-sprig"]
+
+[dependencies]
+indexmap.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+# The dotenv, environment, template engine and helper set are separate crates
+# with their own repositories. Each is named by the version on crates.io: the
+# source checkout this crate was imported from resolved them by path, and a
+# path that leaves this repository cannot be published.
+neotales-dotenv = "0.0.0-alpha.1"
+neotales-env = "0.0.0-alpha.1"
+# The `templates` feature is an optional edge, so the two template crates are
+# optional too. Off by default: a caller who does not render templates links
+# neither.
+neotales-gotmpl = { version = "0.0.0-alpha.0", optional = true }
+neotales-sprig = { version = "0.0.0-alpha.0", optional = true }
+
+[dev-dependencies]
+tempfile.workspace = true
+
+[lints]
+workspace = true

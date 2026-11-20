@@ -1,0 +1,24 @@
+name: provenance
+services:
+  base:
+    image: alpine:3
+    env_file: [./base.env, ./second.env]
+    label_file: ./base.labels
+    build:
+      context: ./app
+      dockerfile: Dockerfile.custom
+    volumes: ['./source:/data']
+    devices: ['./device:/dev/test']
+    blkio_config:
+      weight_device: [{path: ./disk, weight: 100}]
+    credential_spec:
+      file: ./cred.json
+  app:
+    extends: {service: base}
+    volumes: ['./extra:/extra']
+configs:
+  config:
+    file: ./config.txt
+secrets:
+  secret:
+    file: ./secret.txt
