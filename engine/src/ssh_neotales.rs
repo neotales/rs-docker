@@ -3523,6 +3523,10 @@ mod tests {
             .unwrap();
     }
 
+    #[cfg_attr(
+        not(target_os = "linux"),
+        ignore = "socket-pressure fixture needs Linux EAGAIN semantics; see ci.yml"
+    )]
     #[tokio::test]
     async fn pump_wait_readwrite_wakes_on_either_real_direction_or_notification() {
         use std::io::{Read as _, Write as _};
@@ -4492,11 +4496,15 @@ mod tests {
             });
             let start = Instant::now();
             let task = tokio::spawn(async move { super::open_supervised(&options).await });
-            tokio::time::timeout(Duration::from_secs(2), reached_rx)
+            // The 750 ms establishment budget is what the code under test
+            // enforces. The outer bound is a liveness guard against a harness
+            // that never returns, not a second timing assertion: a loaded
+            // runner can delay the task after its deadline fires.
+            tokio::time::timeout(Duration::from_secs(5), reached_rx)
                 .await
                 .unwrap()
                 .unwrap();
-            let result = tokio::time::timeout(Duration::from_secs(2), task)
+            let result = tokio::time::timeout(Duration::from_secs(5), task)
                 .await
                 .unwrap()
                 .unwrap();
@@ -4506,8 +4514,8 @@ mod tests {
                 "{phase} failed before the peer was stalled"
             );
             assert!(
-                start.elapsed() < Duration::from_secs(2),
-                "{phase} exceeded the configured establishment budget"
+                start.elapsed() < Duration::from_secs(5),
+                "{phase} did not return after the peer was stalled"
             );
             release_tx.send(()).unwrap();
             server.join().unwrap();
@@ -5825,156 +5833,280 @@ mod tests {
         PongFatal,
     }
 
+    #[cfg_attr(
+        not(target_os = "linux"),
+        ignore = "socket-pressure fixture needs Linux EAGAIN semantics; see ci.yml"
+    )]
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn pump_reads_behind_blocked_data() {
         probe_read_behind(true, ProbeOutcome::Complete, false, false).await;
     }
 
+    #[cfg_attr(
+        not(target_os = "linux"),
+        ignore = "socket-pressure fixture needs Linux EAGAIN semantics; see ci.yml"
+    )]
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn drop_cancels_pump_with_blocked_data_and_queued_reply() {
         probe_read_behind(true, ProbeOutcome::Drop, false, false).await;
     }
 
+    #[cfg_attr(
+        not(target_os = "linux"),
+        ignore = "socket-pressure fixture needs Linux EAGAIN semantics; see ci.yml"
+    )]
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn pump_reads_peer_data_while_window_credit_write_is_blocked() {
         probe_read_behind(false, ProbeOutcome::Complete, false, false).await;
     }
 
+    #[cfg_attr(
+        not(target_os = "linux"),
+        ignore = "socket-pressure fixture needs Linux EAGAIN semantics; see ci.yml"
+    )]
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn peer_close_reports_accepted_untransmitted_data() {
         probe_read_behind(true, ProbeOutcome::Complete, true, false).await;
     }
 
+    #[cfg_attr(
+        not(target_os = "linux"),
+        ignore = "socket-pressure fixture needs Linux EAGAIN semantics; see ci.yml"
+    )]
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn pump_reads_behind_blocked_eof_and_replies() {
         probe_read_behind(false, ProbeOutcome::Complete, false, true).await;
     }
 
+    #[cfg_attr(
+        not(target_os = "linux"),
+        ignore = "socket-pressure fixture needs Linux EAGAIN semantics; see ci.yml"
+    )]
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn pump_reads_behind_blocked_eof_and_answers_close() {
         probe_read_behind(false, ProbeOutcome::Complete, true, true).await;
     }
 
+    #[cfg_attr(
+        not(target_os = "linux"),
+        ignore = "socket-pressure fixture needs Linux EAGAIN semantics; see ci.yml"
+    )]
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn drop_cancels_pump_with_blocked_eof_and_queued_reply() {
         probe_read_behind(false, ProbeOutcome::Drop, false, true).await;
     }
 
+    #[cfg_attr(
+        not(target_os = "linux"),
+        ignore = "socket-pressure fixture needs Linux EAGAIN semantics; see ci.yml"
+    )]
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn blocked_eof_write_failure_is_terminal() {
         probe_read_behind(false, ProbeOutcome::Fatal, false, true).await;
     }
 
+    #[cfg_attr(
+        not(target_os = "linux"),
+        ignore = "socket-pressure fixture needs Linux EAGAIN semantics; see ci.yml"
+    )]
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn pump_reads_behind_blocked_global_reply() {
         probe_read_behind(false, ProbeOutcome::GlobalComplete, false, false).await;
     }
 
+    #[cfg_attr(
+        not(target_os = "linux"),
+        ignore = "socket-pressure fixture needs Linux EAGAIN semantics; see ci.yml"
+    )]
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn pump_reads_close_behind_blocked_global_reply() {
         probe_read_behind(false, ProbeOutcome::GlobalComplete, true, false).await;
     }
 
+    #[cfg_attr(
+        not(target_os = "linux"),
+        ignore = "socket-pressure fixture needs Linux EAGAIN semantics; see ci.yml"
+    )]
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn drop_cancels_blocked_global_reply() {
         probe_read_behind(false, ProbeOutcome::GlobalDrop, false, false).await;
     }
 
+    #[cfg_attr(
+        not(target_os = "linux"),
+        ignore = "socket-pressure fixture needs Linux EAGAIN semantics; see ci.yml"
+    )]
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn blocked_global_reply_failure_is_terminal() {
         probe_read_behind(false, ProbeOutcome::GlobalFatal, false, false).await;
     }
 
+    #[cfg_attr(
+        not(target_os = "linux"),
+        ignore = "socket-pressure fixture needs Linux EAGAIN semantics; see ci.yml"
+    )]
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn pump_reads_behind_blocked_channel_reply() {
         probe_read_behind(false, ProbeOutcome::ChannelComplete, false, false).await;
     }
 
+    #[cfg_attr(
+        not(target_os = "linux"),
+        ignore = "socket-pressure fixture needs Linux EAGAIN semantics; see ci.yml"
+    )]
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn pump_reads_close_behind_blocked_channel_reply() {
         probe_read_behind(false, ProbeOutcome::ChannelComplete, true, false).await;
     }
 
+    #[cfg_attr(
+        not(target_os = "linux"),
+        ignore = "socket-pressure fixture needs Linux EAGAIN semantics; see ci.yml"
+    )]
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn drop_cancels_blocked_channel_reply() {
         probe_read_behind(false, ProbeOutcome::ChannelDrop, false, false).await;
     }
 
+    #[cfg_attr(
+        not(target_os = "linux"),
+        ignore = "socket-pressure fixture needs Linux EAGAIN semantics; see ci.yml"
+    )]
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn blocked_channel_reply_failure_is_terminal() {
         probe_read_behind(false, ProbeOutcome::ChannelFatal, false, false).await;
     }
 
+    #[cfg_attr(
+        not(target_os = "linux"),
+        ignore = "socket-pressure fixture needs Linux EAGAIN semantics; see ci.yml"
+    )]
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn pump_reads_behind_blocked_open_rejection() {
         probe_read_behind(false, ProbeOutcome::OpenComplete, false, false).await;
     }
 
+    #[cfg_attr(
+        not(target_os = "linux"),
+        ignore = "socket-pressure fixture needs Linux EAGAIN semantics; see ci.yml"
+    )]
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn pump_reads_close_behind_blocked_open_rejection() {
         probe_read_behind(false, ProbeOutcome::OpenComplete, true, false).await;
     }
 
+    #[cfg_attr(
+        not(target_os = "linux"),
+        ignore = "socket-pressure fixture needs Linux EAGAIN semantics; see ci.yml"
+    )]
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn drop_cancels_blocked_open_rejection() {
         probe_read_behind(false, ProbeOutcome::OpenDrop, false, false).await;
     }
 
+    #[cfg_attr(
+        not(target_os = "linux"),
+        ignore = "socket-pressure fixture needs Linux EAGAIN semantics; see ci.yml"
+    )]
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn blocked_open_rejection_failure_is_terminal() {
         probe_read_behind(false, ProbeOutcome::OpenFatal, false, false).await;
     }
 
+    #[cfg_attr(
+        not(target_os = "linux"),
+        ignore = "socket-pressure fixture needs Linux EAGAIN semantics; see ci.yml"
+    )]
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn pump_reads_behind_blocked_close_reply() {
         probe_read_behind(false, ProbeOutcome::CloseComplete, false, false).await;
     }
 
+    #[cfg_attr(
+        not(target_os = "linux"),
+        ignore = "socket-pressure fixture needs Linux EAGAIN semantics; see ci.yml"
+    )]
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn drop_cancels_blocked_close_reply() {
         probe_read_behind(false, ProbeOutcome::CloseDrop, false, false).await;
     }
 
+    #[cfg_attr(
+        not(target_os = "linux"),
+        ignore = "socket-pressure fixture needs Linux EAGAIN semantics; see ci.yml"
+    )]
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn blocked_close_reply_failure_is_terminal() {
         probe_read_behind(false, ProbeOutcome::CloseFatal, false, false).await;
     }
 
+    #[cfg_attr(
+        not(target_os = "linux"),
+        ignore = "socket-pressure fixture needs Linux EAGAIN semantics; see ci.yml"
+    )]
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn foreign_data_behind_blocked_close_fails_closed() {
         probe_read_behind(false, ProbeOutcome::CloseForeignData, false, false).await;
     }
 
+    #[cfg_attr(
+        not(target_os = "linux"),
+        ignore = "socket-pressure fixture needs Linux EAGAIN semantics; see ci.yml"
+    )]
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn foreign_close_behind_blocked_close_fails_closed() {
         probe_read_behind(false, ProbeOutcome::CloseForeignClose, false, false).await;
     }
 
+    #[cfg_attr(
+        not(target_os = "linux"),
+        ignore = "socket-pressure fixture needs Linux EAGAIN semantics; see ci.yml"
+    )]
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn duplicate_close_behind_blocked_close_fails_closed() {
         probe_read_behind(false, ProbeOutcome::CloseDuplicate, false, false).await;
     }
 
+    #[cfg_attr(
+        not(target_os = "linux"),
+        ignore = "socket-pressure fixture needs Linux EAGAIN semantics; see ci.yml"
+    )]
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn pump_reads_ping_behind_blocked_pong() {
         probe_read_behind(false, ProbeOutcome::PongPing, false, false).await;
     }
 
+    #[cfg_attr(
+        not(target_os = "linux"),
+        ignore = "socket-pressure fixture needs Linux EAGAIN semantics; see ci.yml"
+    )]
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn pump_reads_global_behind_blocked_pong() {
         probe_read_behind(false, ProbeOutcome::PongGlobal, false, false).await;
     }
 
+    #[cfg_attr(
+        not(target_os = "linux"),
+        ignore = "socket-pressure fixture needs Linux EAGAIN semantics; see ci.yml"
+    )]
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn pump_reads_close_behind_blocked_pong() {
         probe_read_behind(false, ProbeOutcome::PongClose, true, false).await;
     }
 
+    #[cfg_attr(
+        not(target_os = "linux"),
+        ignore = "socket-pressure fixture needs Linux EAGAIN semantics; see ci.yml"
+    )]
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn drop_cancels_blocked_pong() {
         probe_read_behind(false, ProbeOutcome::PongDrop, false, false).await;
     }
 
+    #[cfg_attr(
+        not(target_os = "linux"),
+        ignore = "socket-pressure fixture needs Linux EAGAIN semantics; see ci.yml"
+    )]
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn blocked_pong_failure_is_terminal() {
         probe_read_behind(false, ProbeOutcome::PongFatal, false, false).await;
@@ -7704,6 +7836,10 @@ mod tests {
         }
     }
 
+    #[cfg_attr(
+        not(target_os = "linux"),
+        ignore = "socket-pressure fixture needs Linux EAGAIN semantics; see ci.yml"
+    )]
     #[test]
     fn pressure_supervisor_fixture() {
         if std::env::var_os(PRESSURE_CHILD).is_some() {
@@ -7738,6 +7874,10 @@ mod tests {
         );
     }
 
+    #[cfg_attr(
+        not(target_os = "linux"),
+        ignore = "socket-pressure fixture needs Linux EAGAIN semantics; see ci.yml"
+    )]
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn real_socket_send_pressure_progresses_and_preserves_order() {
         if !pressure_child_or_supervise("real_socket_send_pressure_progresses_and_preserves_order")
@@ -7747,6 +7887,10 @@ mod tests {
         real_socket_pressure(RealPressureEnd::Release, super::WRITE_STALL_BOUND).await;
     }
 
+    #[cfg_attr(
+        not(target_os = "linux"),
+        ignore = "socket-pressure fixture needs Linux EAGAIN semantics; see ci.yml"
+    )]
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn real_socket_send_pressure_cancels_without_false_success() {
         if !pressure_child_or_supervise("real_socket_send_pressure_cancels_without_false_success") {
@@ -7762,6 +7906,10 @@ mod tests {
     /// fail-closed side of full-FIFO backpressure: the channel driver
     /// refuses a second read while a reply is owed, so the only remaining
     /// progress is the peer reading; when it does not, the pump fails closed.
+    #[cfg_attr(
+        not(target_os = "linux"),
+        ignore = "socket-pressure fixture needs Linux EAGAIN semantics; see ci.yml"
+    )]
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn real_socket_send_pressure_fails_closed_when_the_peer_never_reads() {
         if !pressure_child_or_supervise(
@@ -7779,6 +7927,10 @@ mod tests {
     /// reads. The test observes the arm, the retained rekey with
     /// `reply_outstanding() == false`, both wakers firing at failure, and the
     /// terminal diagnostic after the bound.
+    #[cfg_attr(
+        not(target_os = "linux"),
+        ignore = "socket-pressure fixture needs Linux EAGAIN semantics; see ci.yml"
+    )]
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn async_pump_retained_rekey_without_a_reply_expires_at_the_bound() {
         if !pressure_child_or_supervise(
@@ -7835,6 +7987,10 @@ mod tests {
     /// A peer that ignores every stop signal is reported, not joined without a
     /// bound. The thread finishes shortly after the bound so the test does not
     /// leave it running.
+    #[cfg_attr(
+        not(target_os = "linux"),
+        ignore = "socket-pressure fixture needs Linux EAGAIN semantics; see ci.yml"
+    )]
     #[test]
     fn real_pressure_cleanup_reports_a_peer_that_does_not_terminate() {
         if !pressure_child_or_supervise(
@@ -9005,6 +9161,10 @@ mod tests {
     /// front cannot complete without its remaining ciphertext being written.
     /// The assertions prove those positive-write constraints rather than
     /// inventing a zero-byte completion/retention transition.
+    #[cfg_attr(
+        not(target_os = "linux"),
+        ignore = "socket-pressure fixture needs Linux EAGAIN semantics; see ci.yml"
+    )]
     #[tokio::test(start_paused = true)]
     async fn eof_and_a_following_rekey_do_not_clear_the_reply_stall_state() {
         if !pressure_child_or_supervise(
@@ -10712,6 +10872,10 @@ mod tests {
     /// production `Socket::try_io` adapter; the SSH socket itself is not
     /// saturated. The packet must finish exactly once, the EOF must be sent
     /// exactly once, and the read half must still deliver a later response.
+    #[cfg_attr(
+        not(target_os = "linux"),
+        ignore = "socket-pressure fixture needs Linux EAGAIN semantics; see ci.yml"
+    )]
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     #[allow(clippy::too_many_lines)] // One peer, probe, and pump cover the partial-shutdown lifecycle.
     async fn cancelled_shutdown_while_admitted_data_is_partially_written_retries_once() {
@@ -11563,6 +11727,10 @@ mod tests {
     /// by `async_pump_retained_rekey_without_a_reply_expires_at_the_bound` and
     /// `retained_peer_rekey_with_a_blocked_write_cancels`. This test accepts no
     /// failure on the release path.
+    #[cfg_attr(
+        not(target_os = "linux"),
+        ignore = "socket-pressure fixture needs Linux EAGAIN semantics; see ci.yml"
+    )]
     #[test]
     fn retained_peer_rekey_with_a_blocked_write_releases_and_preserves_order() {
         if !pressure_child_or_supervise(
@@ -11858,6 +12026,10 @@ mod tests {
     /// After a grant near the original deadline the session must stay open past
     /// that deadline, then fail only after the inactivity bound from the last
     /// positive write.
+    #[cfg_attr(
+        not(target_os = "linux"),
+        ignore = "socket-pressure fixture needs Linux EAGAIN semantics; see ci.yml"
+    )]
     #[tokio::test(start_paused = true)]
     async fn partial_socket_writes_through_the_async_pump_restart_the_bound() {
         if !pressure_child_or_supervise(

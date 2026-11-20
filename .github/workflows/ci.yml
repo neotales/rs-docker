@@ -19,13 +19,14 @@ name: ci
 #   three platforms. Clippy is `--all-targets`, so it type-checks every
 #   integration test for that platform even where the tests are not run; that
 #   is what catches a `cfg(unix)` item going dead on Windows.
-# - The test suite itself runs on Linux only. The engine's socket-level
-#   fixtures are inconclusive off Linux: they fill a loopback socket until a
-#   write returns `WouldBlock`, and macOS does not reach that state (its
-#   `EAGAIN` shows up as a `Transport` error instead), so 39 of them fail with
-#   "inconclusive" or a timeout rather than a library assertion. Running them
-#   elsewhere would be a red gate that says nothing about the crates. This is a
-#   coverage gap, not a pass: see the repository report.
+# - The test suite runs on all three platforms. The engine's SSH pressure
+#   fixtures are the one exception: they fill a loopback socket until a write
+#   returns `WouldBlock`, and macOS reaches `EAGAIN` inside the SSH client
+#   instead of on the fixture socket. Those tests carry an explicit
+#   `cfg_attr(not(target_os = "linux"), ignore = ...)` rather than a
+#   whole-engine skip, and the report step below lists every ignored test on
+#   macOS and Windows. Everything else, including the daemon-free loopback
+#   HTTP suites, runs everywhere.
 
 on:
   push:
@@ -70,11 +71,15 @@ jobs:
       - name: Clippy
         run: cargo clippy --workspace --all-targets --all-features -- -D warnings
 
-      # Linux only, for the reason in the header. Every other platform still
-      # compiles these targets in the Clippy step above.
       - name: Test
-        if: runner.os == 'Linux'
         run: cargo test --workspace --all-targets --all-features
+
+      # A skip is a result, not a silence. On macOS and Windows this lists the
+      # tests marked ignored, including the Linux-only SSH pressure fixtures;
+      # the Linux job has no platform ignore and lists only the opt-in suites.
+      - name: Report ignored tests
+        shell: bash
+        run: cargo test --workspace --all-targets --all-features -- --ignored --list
 
       # Separate from the test step above, because `--all-targets` selects the
       # unit, integration, example and benchmark targets and not doctests.
