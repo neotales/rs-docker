@@ -70,13 +70,22 @@ jobs:
       - name: Doctests with the default features
         run: cargo test --workspace --doc
 
+      # The artifact, not the checkout. Each crate is packaged without
+      # verification, extracted, and tested with its workspace siblings patched
+      # to the extracted copies. This is what proves the engine package is
+      # buildable while `neotales-docker-buildkit` is still absent from the
+      # index, instead of treating that index gap as an unverified pass.
+      - name: Test extracted packages against local siblings
+        run: python3 tools/package-preflight.py
+
       # Every publishable package is packaged and verified, in dependency order.
       #
       # A package that depends on another package in this repository cannot be
       # verified against the registry until that sibling's version is on the
       # index, which happens during this release rather than before it. That one
       # failure is expected and tolerated, and only for a dependency named in
-      # `packages.tsv`. Any other failure fails the job. See RELEASE.md.
+      # `packages.tsv`. Any other failure fails the job. See RELEASE.md. The
+      # isolated preflight above is the evidence for the tolerated case.
       - name: Package without publishing
         run: |
           set -euo pipefail
@@ -226,8 +235,31 @@ jobs:
             [ "$code" = "200" ]
           }
 
+          # True only for an index-lag failure naming a sibling this workspace
+          # published earlier in this run. The two spellings cargo uses are
+          # `no matching package named ...` and `failed to select a version for
+          # the requirement ... candidate versions found which didn't match`.
+          # A `failed to select` that names no workspace sibling is not a
+          # reason to retry: it is a real resolution failure and must fail the
+          # run.
+          index_lag_for_sibling() {
+            local output="$1" deps="$2" dep
+            for dep in $(printf '%s' "$deps" | tr ',' ' '); do
+              [ -n "$dep" ] || continue
+              if printf '%s\n' "$output" | grep -F "no matching package named \`$dep\` found" >/dev/null; then
+                return 0
+              fi
+              if printf '%s\n' "$output" | grep -F 'failed to select a version for the requirement' >/dev/null \
+                && printf '%s\n' "$output" | grep -F "\`$dep\`" >/dev/null \
+                && printf '%s\n' "$output" | grep -F "candidate versions found which didn't match" >/dev/null; then
+                return 0
+              fi
+            done
+            return 1
+          }
+
           publish_crate() {
-            local package="$1" version="$2"
+            local package="$1" version="$2" deps="$3"
             local attempt output status
             for attempt in $(seq 1 15); do
               set +e
@@ -243,13 +275,17 @@ jobs:
                 echo "$package $version already uploaded; not publishing again"
                 return 0
               fi
-              if printf '%s\n' "$output" | grep -F 'failed to select a version for the requirement' >/dev/null \
-                || printf '%s\n' "$output" | grep -Eiq '429|rate limit|too many requests'; then
-                echo "retryable publish failure for $package (attempt $attempt); waiting 20s"
+              if printf '%s\n' "$output" | grep -Eiq '429|rate limit|too many requests'; then
+                echo "rate-limited publishing $package (attempt $attempt); waiting 20s"
                 sleep 20
                 continue
               fi
-              echo "publish of $package failed"
+              if index_lag_for_sibling "$output" "$deps"; then
+                echo "sibling index lag publishing $package (attempt $attempt); waiting 20s"
+                sleep 20
+                continue
+              fi
+              echo "publish of $package failed for a reason other than rate limiting or a known sibling index lag"
               return 1
             done
             echo "publish of $package did not succeed after retries"
@@ -261,5 +297,5 @@ jobs:
               echo "$package $version is already on crates.io; not publishing again"
               continue
             fi
-            publish_crate "$package" "$version"
+            publish_crate "$package" "$version" "$deps"
           done < packages.tsv

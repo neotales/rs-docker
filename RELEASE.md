@@ -19,10 +19,17 @@ Bump the version in all five manifests, commit, push, then tag that commit:
 
 ```sh
 cargo publish --dry-run -p neotales-oci-distribution
+python3 tools/package-preflight.py
 git tag v0.0.0-alpha.1
 git push origin dev
 git push origin v0.0.0-alpha.1
 ```
+
+The preflight packages every crate without verification, extracts each
+tarball, and runs its tests with the workspace siblings patched to the
+extracted copies. It is the check that has evidence for the engine while
+`neotales-docker-buildkit` is not on the index yet. `cargo publish --dry-run`
+alone cannot make that claim.
 
 The one exception is a new crate's first version, which is uploaded by hand and
 never from a tag. That is the next section.
@@ -49,8 +56,47 @@ its manifest and is then absent from the list. There is no such crate today,
 and `cargo publish -p <name>` names packages one at a time so one could not be
 uploaded by accident.
 
+The publish loop retries a crate for two reasons only: crates.io answered with
+a rate-limit status, or the failure names a sibling this workspace uploaded
+earlier in the same run and has either of cargo's index-lag spellings, `no
+matching package named ... found` or `failed to select a version for the
+requirement ... candidate versions found which didn't match`. A `failed to
+select` that names no workspace sibling is a real resolution failure and fails
+the run. The step does not retry it.
+
 A re-run skips a version that is already on crates.io. Do not republish a
 version, and do not delete or move the tag.
+
+## Resume after a partial publish
+
+The tag stays where it is. A workflow re-run for the same tag is the recovery
+path:
+
+1. The `check` job runs again, including the isolated package preflight.
+2. The publish loop asks crates.io whether each package version exists. An
+   uploaded crate is skipped, so a sibling is never uploaded twice.
+3. A crate that failed before its upload is attempted again.
+4. A crate whose upload was accepted but whose response was lost reports
+   `already uploaded`; that is success, not a reason to bump.
+
+If the upload was accepted for a broken artifact, the version cannot be
+replaced. Bump the patch version in all five manifests, commit, and tag a new
+version. Deleting the old tag does not unpublish the crate.
+
+A manual first upload has the same shape: if `publish.sh` succeeds for `oci`
+and `buildkit` and fails for `bake`, run only `~/work/rs/publish.sh bake` again,
+then `compose` and `engine`. Do not restart at `oci`.
+
+## What a package contains
+
+`cargo package` includes the package directory, not the repository root. Each
+crate tarball carries its `Cargo.toml`, `Cargo.lock`, `README.md`,
+`LICENSE.md`, `src/`, `tests/` (including that crate's test fixtures), and any
+crate-local `docs/`. The root `.github/`, `RELEASE.md`, the root `fixtures/`
+directory, and `README.STYLE.md` are not part of any crate. A test that needs a
+fixture must keep the fixture under its own crate; the isolated preflight
+packages the crate and runs its tests from the extracted tarball, so a test
+that reaches outside the package fails there rather than after publication.
 
 ## First publish of a new crate
 
@@ -106,10 +152,8 @@ publish trigger. Every later version publishes from its `v*` tag.
 If a crate name is taken on crates.io by someone else, stop. A rename is a
 different repository setup, not a flag.
 
-`cargo package` includes every tracked file, so `.github/`, `RELEASE.md` and
-`fixtures/` ship inside the published crates unless the manifest excludes them.
-That is harmless. Exclude them if package size matters. The README style guide
-lives at `~/work/rs/README.STYLE.md` and is not part of a crate.
+The README style guide lives at `~/work/rs/README.STYLE.md` and is not part of
+a crate.
 
 ## Later releases
 
