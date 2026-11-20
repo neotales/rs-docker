@@ -8,6 +8,11 @@ license.workspace = true
 repository.workspace = true
 authors.workspace = true
 readme = "README.md"
+# The repository root holds the licence and the style guide. A package only
+# ships files under its own directory, so list the file set explicitly and
+# include LICENSE.md; cargo package accepts that licence file with the SPDX
+# `license` field above.
+include = ["/Cargo.toml", "/README.md", "/LICENSE.md", "/src/**", "/tests/**", "/docs/**"]
 keywords = ["docker", "compose", "yaml", "oci", "config"]
 categories = ["config", "parser-implementations"]
 

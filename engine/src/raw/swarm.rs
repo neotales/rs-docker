@@ -4118,17 +4118,17 @@ mod tests {
     const VERSION: ApiVersion = crate::API_VERSION;
 
     /// The Swarm documents this repository keeps as fixtures.
-    const SERVICE: &str = include_str!("../../../fixtures/docker/engine/swarm/service.json");
-    const SERVICES: &str = include_str!("../../../fixtures/docker/engine/swarm/services.json");
-    const NODE: &str = include_str!("../../../fixtures/docker/engine/swarm/node.json");
-    const NODES: &str = include_str!("../../../fixtures/docker/engine/swarm/nodes.json");
-    const TASK: &str = include_str!("../../../fixtures/docker/engine/swarm/task.json");
-    const TASKS: &str = include_str!("../../../fixtures/docker/engine/swarm/tasks.json");
-    const CONFIG: &str = include_str!("../../../fixtures/docker/engine/swarm/config.json");
-    const CONFIGS: &str = include_str!("../../../fixtures/docker/engine/swarm/configs.json");
-    const SECRET: &str = include_str!("../../../fixtures/docker/engine/swarm/secret.json");
-    const SECRETS: &str = include_str!("../../../fixtures/docker/engine/swarm/secrets.json");
-    const SWARM: &str = include_str!("../../../fixtures/docker/engine/swarm/inspect.json");
+    const SERVICE: &str = include_str!("../../tests/fixtures/docker/engine/swarm/service.json");
+    const SERVICES: &str = include_str!("../../tests/fixtures/docker/engine/swarm/services.json");
+    const NODE: &str = include_str!("../../tests/fixtures/docker/engine/swarm/node.json");
+    const NODES: &str = include_str!("../../tests/fixtures/docker/engine/swarm/nodes.json");
+    const TASK: &str = include_str!("../../tests/fixtures/docker/engine/swarm/task.json");
+    const TASKS: &str = include_str!("../../tests/fixtures/docker/engine/swarm/tasks.json");
+    const CONFIG: &str = include_str!("../../tests/fixtures/docker/engine/swarm/config.json");
+    const CONFIGS: &str = include_str!("../../tests/fixtures/docker/engine/swarm/configs.json");
+    const SECRET: &str = include_str!("../../tests/fixtures/docker/engine/swarm/secret.json");
+    const SECRETS: &str = include_str!("../../tests/fixtures/docker/engine/swarm/secrets.json");
+    const SWARM: &str = include_str!("../../tests/fixtures/docker/engine/swarm/inspect.json");
 
     fn engine() -> RawEngine {
         RawEngine::new(

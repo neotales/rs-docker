@@ -15,8 +15,8 @@ use neotales_docker_compose::{
     InterpolationValues, container_operation_id, network_operation_id,
 };
 
-const SOURCE: &str = include_str!("../../fixtures/compose/v1/applied-slice.yaml");
-const EXPECTED: &str = include_str!("../../fixtures/compose/v1/applied-slice.expected.json");
+const SOURCE: &str = include_str!("fixtures/compose/v1/applied-slice.yaml");
+const EXPECTED: &str = include_str!("fixtures/compose/v1/applied-slice.expected.json");
 
 fn project() -> ComposeProject {
     ComposeProject::parse_yaml(

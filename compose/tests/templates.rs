@@ -15,7 +15,7 @@ use neotales_docker_compose::{
 
 const SAFE_HELPERS: &str = include_str!("fixtures/templates/safe-helpers.gotmpl");
 const UNSUPPORTED_ENV: &str = include_str!("fixtures/templates/unsupported-env.gotmpl");
-const DOTENV: &str = include_str!("../../fixtures/compose/v1/dotenv-quoting-order.env");
+const DOTENV: &str = include_str!("fixtures/compose/v1/dotenv-quoting-order.env");
 
 fn values() -> InterpolationValues {
     InterpolationValues::from_pairs([

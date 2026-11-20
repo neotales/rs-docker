@@ -8,8 +8,8 @@ use neotales_docker_compose::{
     InterpolationValues, MergePolicy,
 };
 
-const SOURCE: &str = include_str!("../../fixtures/compose/v1/lifecycle-plan.yaml");
-const EXPECTED_CALLS: &str = include_str!("../../fixtures/compose/v1/executor-calls.expected.json");
+const SOURCE: &str = include_str!("fixtures/compose/v1/lifecycle-plan.yaml");
+const EXPECTED_CALLS: &str = include_str!("fixtures/compose/v1/executor-calls.expected.json");
 
 fn project() -> ComposeProject {
     ComposeProject::parse_sources(

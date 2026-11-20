@@ -15,7 +15,7 @@ use neotales_docker_bake::{
 const SAFE_HELPERS: &str = include_str!("fixtures/templates/safe-helpers.gotmpl");
 const UNSUPPORTED_NETWORK: &str =
     include_str!("fixtures/templates/unsupported-network-helper.gotmpl");
-const DOTENV: &str = include_str!("../../fixtures/compose/v1/dotenv-quoting-order.env");
+const DOTENV: &str = include_str!("fixtures/compose/v1/dotenv-quoting-order.env");
 
 fn values() -> VariableValues {
     VariableValues::from_pairs([("repository", "REGISTRY.EXAMPLE/Team")])

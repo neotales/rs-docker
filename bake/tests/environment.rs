@@ -11,11 +11,10 @@ use neotales_docker_bake::{
     load_dotenv, load_dotenv_path, load_dotenv_sources, normalize_with_values, parse_json,
 };
 
-const QUOTING: &str = include_str!("../../fixtures/compose/v1/dotenv-quoting-order.env");
-const INVALID: &str = include_str!("../../fixtures/compose/v1/dotenv-invalid.env");
-const PRECEDENCE_BASE: &str = include_str!("../../fixtures/compose/v1/dotenv-precedence-base.env");
-const PRECEDENCE_OVERLAY: &str =
-    include_str!("../../fixtures/compose/v1/dotenv-precedence-overlay.env");
+const QUOTING: &str = include_str!("fixtures/compose/v1/dotenv-quoting-order.env");
+const INVALID: &str = include_str!("fixtures/compose/v1/dotenv-invalid.env");
+const PRECEDENCE_BASE: &str = include_str!("fixtures/compose/v1/dotenv-precedence-base.env");
+const PRECEDENCE_OVERLAY: &str = include_str!("fixtures/compose/v1/dotenv-precedence-overlay.env");
 
 #[test]
 fn dotenv_preserves_quotes_order_and_interpolates_with_the_ordered_model() {

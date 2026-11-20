@@ -21,19 +21,18 @@ fn resolve(source: &str, path: &str) -> neotales_docker_compose::ResolvedCompose
 #[test]
 fn yaml_and_json_fixtures_normalize_to_the_same_deterministic_result() {
     let yaml = resolve(
-        include_str!("../../fixtures/compose/v1/service-image-environment.yaml"),
+        include_str!("fixtures/compose/v1/service-image-environment.yaml"),
         "service-image-environment.yaml",
     );
     let json_document = ComposeDocument::parse_json(
-        include_str!("../../fixtures/compose/v1/service-image-environment.json"),
+        include_str!("fixtures/compose/v1/service-image-environment.json"),
         "service-image-environment.json",
     )
     .expect("JSON fixture is valid");
     let json = ComposeResolver::resolve(&[json_document], &values(), ComposePolicy::default())
         .expect("JSON fixture resolves");
 
-    let expected_text =
-        include_str!("../../fixtures/compose/v1/service-image-environment.expected.json");
+    let expected_text = include_str!("fixtures/compose/v1/service-image-environment.expected.json");
     let expected: serde_json::Value =
         serde_json::from_str(expected_text).expect("expected fixture is valid JSON");
     let yaml_json: serde_json::Value =
@@ -88,7 +87,7 @@ fn explicit_normalized_model_is_accepted_without_a_source_parser() {
 #[test]
 fn interpolation_uses_only_injected_values_and_preserves_empty_versus_pass_through() {
     let document = ComposeDocument::parse_yaml(
-        include_str!("../../fixtures/compose/v1/service-image-environment.yaml"),
+        include_str!("fixtures/compose/v1/service-image-environment.yaml"),
         "compose.yaml",
     )
     .expect("fixture is valid");
@@ -197,12 +196,12 @@ fn merge_and_include_policies_are_explicit() {
     );
 
     let main = ComposeDocument::parse_yaml(
-        include_str!("../../fixtures/compose/v1/include-main.yaml"),
+        include_str!("fixtures/compose/v1/include-main.yaml"),
         "include-main.yaml",
     )
     .expect("include fixture is valid");
     let shared = ComposeDocument::parse_yaml(
-        include_str!("../../fixtures/compose/v1/include-shared.yaml"),
+        include_str!("fixtures/compose/v1/include-shared.yaml"),
         "include-shared.yaml",
     )
     .expect("shared fixture is valid");
@@ -234,7 +233,7 @@ fn merge_and_include_policies_are_explicit() {
 
 #[test]
 fn validation_modes_do_not_silently_apply_unsupported_service_fields() {
-    let source = include_str!("../../fixtures/compose/v1/unsupported-service.yaml");
+    let source = include_str!("fixtures/compose/v1/unsupported-service.yaml");
     let strict = ComposeDocument::parse_yaml_with_options(
         source,
         "unsupported-service.yaml",
