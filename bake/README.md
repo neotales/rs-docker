@@ -1,109 +1,113 @@
 # neotales-docker-bake
 
-Repository-native Docker Bake document parsing and target planning.
+Parse Docker Bake JSON, resolve target inheritance, and plan an ordered target graph without contacting a builder.
 
-The default crate remains a bounded RD-006 slice. It provides:
+By [x0craft](https://github.com/x0craft).
 
-- bounded, JSON-only Bake document parsing with strict unsupported-field
-  rejection;
-- ordered target and group declarations;
-- target inheritance with deterministic map/list precedence;
-- normalized context/Dockerfile defaults and simple declared Bake-variable
-  substitution;
-- group and named `target:` context graph validation; and
-- an owned, dependency-first target selection graph.
+[![Neotales](https://github.com/neotales/brand/raw/main/assets/logo.png)](https://github.com/neotales/rs-docker)
 
-The default crate intentionally does **not** depend on `neotales-docker` or
-`neotales-docker-buildkit`. It does not contact a builder, inject a solver,
-parse HCL, or convert Compose files. It can parse an explicitly selected dotenv
-file through the repository-native input boundary, but never discovers a file
-or reads the process environment implicitly. The opt-in `templates` feature
-adds only the public `neotales-gotmpl` and safe `neotales-sprig` contracts; it
-does not make the normalized JSON parser or planner require rendering.
+<!-- badges: crates.io, docs.rs, CI. Add once the crate name and first version exist. -->
 
-## Supported JSON shape
+## Install
 
-The parser accepts Docker Bake's canonical JSON blocks. Variable objects may
-carry a string `default`, `type` metadata, and `description`; complex variable
-values and typed evaluation are deferred; simple string defaults are expanded
-during normalization.
-
-```json
-{
-  "variable": {
-    "TAG": { "default": "latest" }
-  },
-  "group": {
-    "default": { "targets": ["app"] }
-  },
-  "target": {
-    "app": {
-      "tags": ["example/app:${TAG}"],
-      "platforms": ["linux/amd64"],
-      "target": "runtime",
-      "no-cache": true,
-      "pull": true
-    }
-  }
-}
+```sh
+cargo add neotales-docker-bake
 ```
 
-The bounded target fields are `inherits`, `context`, `dockerfile`, `args`,
-`labels`, `contexts`, `tags`, `platforms`, `target`, `no-cache`, `pull`, and
-`description`. Other Bake fields are rejected rather than silently ignored.
-`null` values in `args` and `labels` are retained as explicit Dockerfile-default
-arguments.
+Templates are opt-in:
 
-## Opt-in templates
+```sh
+cargo add neotales-docker-bake --features templates
+```
 
-With the `templates` feature, `render_template` accepts a bounded explicit
-source and typed caller values before the existing `parse_json` or
-`parse_normalized_json` path. It returns source without a `{{` delimiter
-unchanged, applies finite parse/render limits, and observes one cooperative
-cancellation callback. Only deterministic safe helpers are available; process,
-environment, filesystem, network, and credential helpers remain unsupported.
+## What you can do
 
-## Example
+📦 **Plan the targets a build needs.** `parse_and_plan` normalizes the document, validates groups and named contexts, and returns an owned graph in dependency order.
 
 ```rust
-use neotales_docker_bake::{BakeError, parse_normalized_json};
+use neotales_docker_bake::parse_and_plan;
 
-fn example() -> Result<(), BakeError> {
-    let document = parse_normalized_json(
-        r#"{
-            "target": {
-                "base": {"context": ".", "dockerfile": "Dockerfile"},
-                "app": {"inherits": ["base"], "tags": ["example/app:latest"]}
-            },
-            "group": {"default": {"targets": ["app"]}}
-        }"#,
-    )?;
-    let graph = document.plan(&["default"])?;
-    assert_eq!(graph.target("app").unwrap().dockerfile, "Dockerfile");
-    Ok(())
-}
+let graph = parse_and_plan(
+    r#"{
+        "target": {
+            "base": {"context": ".", "dockerfile": "Dockerfile"},
+            "app": {"inherits": ["base"], "tags": ["example/app:latest"]}
+        },
+        "group": {"default": {"targets": ["app"]}}
+    }"#,
+    &["default"],
+)?;
+assert_eq!(graph.target("app").unwrap().dockerfile, "Dockerfile");
+# Ok::<(), neotales_docker_bake::BakeError>(())
 ```
 
-`parse_and_plan` is a compact equivalent for callers that do not need to retain
-an intermediate normalized document. The graph owns all resolved values and
-contains no builder or session state.
+🧬 **Inherit and merge targets deterministically.** Target fields merge in declaration order. Maps merge by key; scalar lists replace. A cycle is reported with the inheritance trace instead of being flattened.
 
-## Dotenv boundary
+```rust
+use neotales_docker_bake::parse_normalized_json;
 
-`load_dotenv`, `load_dotenv_path`, and `load_dotenv_sources` use
-`neotales-dotenv` for source-preserving assignment parsing and produce
-`VariableValues` backed by the ordered, platform-aware
-`neotales-env::Environment`. `DotenvPolicy` explicitly controls invalid nodes,
-invalid environment keys, quote interpolation, and `DotenvPrecedence`:
-`InjectedWins` protects caller values, while `LastWins` lets later assignments
-and sources replace them. `load_dotenv_path` is explicit I/O; there is no
-implicit `.env` lookup or process-global fallback. The same `VariableValues`
-model is accepted by `normalize_with_values` and the opt-in template adapter.
+let document = parse_normalized_json(
+    r#"{
+        "variable": {"TAG": {"default": "2026.11"}},
+        "target": {
+            "base": {"args": {"MODE": "release"}, "tags": ["base:latest"]},
+            "app": {
+                "inherits": ["base"],
+                "args": {"MODE": "debug"},
+                "tags": ["app:${TAG}"]
+            }
+        }
+    }"#,
+)?;
+let graph = document.plan(&["app"])?;
+let app = graph.target("app").unwrap();
+assert_eq!(app.args.get("MODE").and_then(Option::as_deref), Some("debug"));
+assert_eq!(app.tags, ["app:2026.11"]);
+# Ok::<(), neotales_docker_bake::BakeError>(())
+```
 
-Deterministic fixtures under `tests/fixtures` cover defaults, inheritance,
-group/target selection, and inheritance, group, and named-context cycles. The
-shared Compose dotenv fixtures additionally cover quoting, ordering,
-precedence, interpolation, Windows key rules, invalid assignments, and
-cancellation. Opt-in template tests additionally cover safe helpers, Bake
-interpolation, bounded/cancelled rendering, unsupported network helpers, and
-the unchanged non-template parser path.
+🔐 **Keep variable lookup explicit.** `VariableValues` is an ordered map with the host platform's key rules. Nothing reads the process environment or discovers a `.env` file on its own.
+
+```rust
+use neotales_docker_bake::{VariableValues, normalize_with_values, parse_json};
+
+let document = parse_json(
+    r#"{
+        "variable": {"TAG": {"description": "image tag"}},
+        "target": {"app": {"tags": ["app:${TAG}"]}}
+    }"#,
+)?;
+let values = VariableValues::from_pairs([("TAG", "2026.11")]);
+let normalized = normalize_with_values(&document, &values)?;
+assert_eq!(normalized.plan(&["app"])?.target("app").unwrap().tags, ["app:2026.11"]);
+# Ok::<(), neotales_docker_bake::BakeError>(())
+```
+
+🧾 **Load dotenv only when you name it.** `load_dotenv_path` returns ordered `VariableValues` and a document that preserves where each assignment came from. `DotenvPolicy` makes invalid nodes, invalid keys, interpolation, and precedence explicit.
+
+```rust,no_run
+use neotales_docker_bake::{DotenvOptions, load_dotenv_path};
+
+let loaded = load_dotenv_path(".env.build", DotenvOptions::new())?;
+let values = loaded.into_parts().1;
+# Ok::<(), neotales_docker_bake::BakeError>(())
+```
+
+🎨 **Render templates before parsing.** With the `templates` feature, `render_template` accepts explicit source and caller-owned values, applies finite limits, and returns source without `{{` unchanged. The normalized JSON parser does not require the feature.
+
+```rust,ignore
+use neotales_docker_bake::{TemplateOptions, VariableValues, render_template};
+
+let values = VariableValues::from_pairs([("TAG", "2026.11")]);
+let source = render_template("tags: [app:{{ .TAG }}]", &values, &TemplateOptions::new())?;
+assert_eq!(source, "tags: [app:2026.11]");
+# Ok::<(), neotales_docker_bake::TemplateError>(())
+```
+
+## Limits
+
+The default crate accepts Docker Bake's JSON shape, not HCL. The bounded target fields are `inherits`, `context`, `dockerfile`, `args`, `labels`, `contexts`, `tags`, `platforms`, `target`, `no-cache`, `pull`, and `description`; other fields are rejected rather than ignored. Complex variable types and typed evaluation are deferred; string defaults expand during normalization. The crate never contacts a builder, injects a solver, reads the process environment, or converts Compose files. `neotales-docker` and `neotales-docker-buildkit` are not dependencies.
+
+## Licence
+
+[MIT](LICENSE.md)

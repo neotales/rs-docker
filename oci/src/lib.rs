@@ -10,6 +10,7 @@
 //! No type in this crate reads Docker Engine credentials or
 //! `X-Registry-Auth`.  Callers provide an independent
 //! [`RegistryCredentialProvider`] to a future transport.
+#![doc = include_str!("../README.md")]
 
 pub mod auth;
 pub mod digest;

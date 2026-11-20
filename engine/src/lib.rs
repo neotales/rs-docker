@@ -3,6 +3,7 @@
 //! The compatibility ceiling is Docker Engine API version 1.55. The facade
 //! exposes repository-owned models and caller-owned streaming handles.
 #![doc = include_str!("../README.md")]
+#![doc = include_str!("../docs/engine-api.md")]
 
 use std::fmt;
 use std::time::Duration;
@@ -197,14 +198,14 @@ pub const API_VERSION: ApiVersion = ApiVersion {
 /// four gaps are real and none of them is visible in this crate's types, which
 /// is the whole reason the list is written down rather than inferred.
 ///
-/// The user-facing copy of this table is in `README.md`, which is the crate's
-/// documentation through `#![doc = include_str!("../README.md")]`. Keeping it
-/// here as well is not duplication for its own sake: `conformance_table_matches_
-/// the_readme` fails if the two disagree, so neither copy can quietly fall
-/// behind the other.
+/// The user-facing copy of this table is in `docs/engine-api.md`, which is
+/// crate documentation through `#![doc = include_str!("../docs/engine-api.md")]`.
+/// Keeping it here as well is not duplication for its own sake:
+/// `conformance_table_matches_the_documentation` fails if the copies disagree,
+/// so neither can quietly fall behind the other.
 ///
-/// Two further 1.55 changes are documentation-only and are recorded in the
-/// README rather than here: a `StopTimeout` description that now names the
+/// Two further 1.55 changes are documentation-only and are recorded in that
+/// page rather than here: a `StopTimeout` description that now names the
 /// `default-stop-timeout` setting, and clarifications to the `/secrets` and
 /// `/configs` filter documentation.
 ///
@@ -2025,17 +2026,23 @@ mod tests {
         }
     }
 
-    /// The README is the crate's public documentation, so its copy of the
-    /// conformance table has to be the same table.
+    /// The README and its API-detail page are the crate's public
+    /// documentation, so their copy of the conformance table has to be the
+    /// same table.
     ///
     /// Two copies of the same list is duplication with a failure mode, and the
     /// failure mode is the one this repository keeps finding: a doc that asserts
     /// a check catches something it does not. `API_VERSION_ADDITIONS` is what a
-    /// test can check, and the README is what a reader reads, so this test is
-    /// what stops the second from quietly describing a different boundary.
+    /// test can check, and the two documents are what a reader reads, so this
+    /// test is what stops the second from quietly describing a different
+    /// boundary.
     #[test]
-    fn conformance_table_matches_the_readme() {
-        let readme = include_str!("../README.md");
+    fn conformance_table_matches_the_documentation() {
+        let documentation = concat!(
+            include_str!("../README.md"),
+            "\n",
+            include_str!("../docs/engine-api.md"),
+        );
         for (version, change, status) in super::API_VERSION_ADDITIONS {
             for (what, needle) in [
                 ("version", *version),
@@ -2043,11 +2050,11 @@ mod tests {
                 ("status", *status),
             ] {
                 assert!(
-                    readme.contains(needle),
-                    "the README's conformance table does not carry the {what} of the \
-                     {version} entry ({needle:?}); README.md is the crate's documentation \
-                     through #![doc = include_str!], so a reader sees a boundary the code \
-                     no longer holds"
+                    documentation.contains(needle),
+                    "the documentation's conformance table does not carry the {what} of the \
+                     {version} entry ({needle:?}); both README.md and docs/engine-api.md are \
+                     crate documentation through #![doc = include_str!], so a reader sees a \
+                     boundary the code no longer holds"
                 );
             }
         }

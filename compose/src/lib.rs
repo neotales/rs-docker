@@ -9,6 +9,7 @@
 //! caller-driven source renderer without changing the normalized parse and
 //! resolution paths.
 #![doc = include_str!("../README.md")]
+#![doc = include_str!("../docs/compose-runtime.md")]
 #![cfg_attr(
     feature = "templates",
     doc = r##"# Values files
