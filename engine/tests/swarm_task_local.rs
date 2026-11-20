@@ -1,5 +1,10 @@
+//! Swarm task reads through a captured local endpoint.
+//!
+//! The parent test runs a child that stands up a Unix listener over the
+//! captured `DOCKER_HOST` and answers the task list and inspect routes, so the
+//! reads are proved against a real socket rather than a mock. Unix only: the
+//! fixture binds an `AF_UNIX` socket.
 #![cfg(unix)]
-#![allow(missing_docs)]
 use neotales_docker::{API_VERSION, DockerClient};
 use std::{
     io::{Read, Write},

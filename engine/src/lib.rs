@@ -3152,6 +3152,7 @@ mod tests {
         }
     }
 
+    #[cfg(unix)]
     /// The raw transport's fixed overall-deadline message.
     fn secret_read_timeout_message(budget: std::time::Duration) -> String {
         format!("timed out after {budget:?} waiting for the Engine request to complete")
@@ -3164,6 +3165,7 @@ mod tests {
     /// is still checked to prove the marker came from this budget rather than a
     /// different marked deadline. Text alone is not accepted: an unmarked
     /// transport error carrying the same words is false.
+    #[cfg(unix)]
     fn is_secret_read_timeout(error: &Error, budget: std::time::Duration) -> bool {
         if error.kind() != ErrorKind::Transport || !error.is_transport_deadline() {
             return false;
@@ -3176,6 +3178,7 @@ mod tests {
 
     /// Asserts the error is the overall-deadline timeout, not another transport
     /// failure.
+    #[cfg(unix)]
     fn assert_secret_read_timeout(error: &Error, budget: std::time::Duration) {
         let renderings = render_error_chain(error);
         assert!(
@@ -3185,6 +3188,7 @@ mod tests {
     }
 
     /// Asserts the positive predicate rejects a different transport failure.
+    #[cfg(unix)]
     fn assert_not_secret_read_timeout(error: &Error, budget: std::time::Duration) {
         let renderings = render_error_chain(error);
         assert!(
@@ -3223,6 +3227,7 @@ mod tests {
     }
 
     /// Every `Display` and `Debug` rendering in an error chain.
+    #[cfg(unix)]
     fn render_error_chain(error: &dyn std::error::Error) -> Vec<String> {
         let mut rendered = vec![error.to_string(), format!("{error:?}")];
         let mut source = error.source();

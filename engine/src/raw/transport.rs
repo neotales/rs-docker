@@ -707,7 +707,7 @@ impl RawEngine {
     }
 
     /// Installs the local facade's single request budget.
-    #[cfg(test)]
+    #[cfg(all(test, unix))]
     pub(crate) fn with_local_overall_deadline(mut self, deadline: Duration) -> Self {
         self.local_overall_deadline = Some(deadline);
         self
@@ -761,7 +761,7 @@ impl RawEngine {
     }
 
     /// Returns the overall request deadline, for the facade's wiring tests.
-    #[cfg(test)]
+    #[cfg(all(test, unix))]
     #[must_use]
     pub(crate) const fn overall_request_deadline(&self) -> Option<Duration> {
         self.overall_request_deadline
