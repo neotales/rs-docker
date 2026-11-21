@@ -897,8 +897,26 @@ async fn raw_https_request_cancellation_closes_the_tls_connection() -> Result<()
     );
     let engine = client.raw_engine()?;
 
-    let cancelled = tokio::time::timeout(Duration::from_millis(200), raw::info(&engine)).await;
-    assert!(cancelled.is_err(), "the fixture must not answer");
+    // Poll until the fixture has the request head, then drop the future. If
+    // the future is dropped before the head reaches the peer, the fixture is
+    // still in its own read and never reaches the close observation, which is
+    // a fixture race rather than a client failure.
+    let mut request = Box::pin(raw::info(&engine));
+    let request_deadline = Instant::now() + Duration::from_secs(10);
+    loop {
+        match tokio::time::timeout(Duration::from_millis(20), request.as_mut()).await {
+            Err(_) => {}
+            Ok(result) => panic!("the fixture answered instead of holding: {result:?}"),
+        }
+        if !fixture.fixture.requests().is_empty() {
+            break;
+        }
+        assert!(
+            Instant::now() < request_deadline,
+            "the fixture never received the request head"
+        );
+    }
+    drop(request);
 
     // Closure is the property; the bound is only a harness guard. Windows
     // runners can take longer than a few seconds to report the peer close

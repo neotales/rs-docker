@@ -7836,10 +7836,6 @@ mod tests {
         }
     }
 
-    #[cfg_attr(
-        not(target_os = "linux"),
-        ignore = "socket-pressure fixture needs Linux EAGAIN semantics; see ci.yml"
-    )]
     #[test]
     fn pressure_supervisor_fixture() {
         if std::env::var_os(PRESSURE_CHILD).is_some() {
