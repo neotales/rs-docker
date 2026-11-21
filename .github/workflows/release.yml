@@ -90,19 +90,30 @@ jobs:
         run: |
           set -euo pipefail
 
+          # Cargo names the failing requirement two ways. When the package is
+          # absent from the index it is `crate` alone; when the crate exists but
+          # no published version satisfies the requirement it is `crate = "req"`.
+          # A sibling whose index holds only an older prerelease is the second
+          # case, so match both spellings. Matching the first alone reported
+          # that case as a real resolution failure.
+          names_requirement() {
+            local output="$1" name="$2"
+            printf '%s\n' "$output" | grep -F "\`$name = " >/dev/null \
+              || printf '%s\n' "$output" | grep -F "\`$name\`" >/dev/null
+          }
+
           # True only when the failure is the index not yet holding a version of
           # a sibling crate that this same tag is about to upload.
           expected_index_gap() {
-            local output="$1" deps="$2" dep
-            local name
+            local output="$1" deps="$2" name
             for name in $(printf '%s' "$deps" | tr ',' ' '); do
               [ -n "$name" ] || continue
               if printf '%s\n' "$output" | grep -F "no matching package named \`$name\` found" >/dev/null; then
                 return 0
               fi
               if printf '%s\n' "$output" | grep -F 'failed to select a version for the requirement' >/dev/null \
-                && printf '%s\n' "$output" | grep -F "\`$name\`" >/dev/null \
-                && printf '%s\n' "$output" | grep -F "candidate versions found which didn't match" >/dev/null; then
+                && printf '%s\n' "$output" | grep -F "candidate versions found which didn't match" >/dev/null \
+                && names_requirement "$output" "$name"; then
                 return 0
               fi
             done
@@ -235,6 +246,17 @@ jobs:
             [ "$code" = "200" ]
           }
 
+          # Cargo names the failing requirement two ways: `crate` alone when the
+          # package is absent, and `crate = "req"` when the crate exists but no
+          # published version satisfies the requirement. A sibling being
+          # published earlier in this run is the second case when the index
+          # already holds an older prerelease, so match both spellings.
+          names_requirement() {
+            local output="$1" name="$2"
+            printf '%s\n' "$output" | grep -F "\`$name = " >/dev/null \
+              || printf '%s\n' "$output" | grep -F "\`$name\`" >/dev/null
+          }
+
           # True only for an index-lag failure naming a sibling this workspace
           # published earlier in this run. The two spellings cargo uses are
           # `no matching package named ...` and `failed to select a version for
@@ -250,8 +272,8 @@ jobs:
                 return 0
               fi
               if printf '%s\n' "$output" | grep -F 'failed to select a version for the requirement' >/dev/null \
-                && printf '%s\n' "$output" | grep -F "\`$dep\`" >/dev/null \
-                && printf '%s\n' "$output" | grep -F "candidate versions found which didn't match" >/dev/null; then
+                && printf '%s\n' "$output" | grep -F "candidate versions found which didn't match" >/dev/null \
+                && names_requirement "$output" "$dep"; then
                 return 0
               fi
             done
