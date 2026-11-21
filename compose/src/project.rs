@@ -2339,10 +2339,11 @@ fn rebase(value: &mut String, origin: &Origin, root: &Origin) -> Result<(), Comp
     for part in components(&result) {
         normalized.push(part);
     }
-    *value = if normalized.as_os_str().is_empty() {
+    let rendered = normalized.to_string_lossy().into_owned();
+    *value = if rendered.is_empty() {
         ".".to_owned()
     } else {
-        normalized.to_string_lossy().into_owned()
+        key_spelling(&rendered)
     };
     Ok(())
 }
@@ -2862,12 +2863,14 @@ fn referenced_display_source(declaring: &str, reference: Option<&str>) -> String
     if reference == "<interpolated file>" || declaring.contains("<interpolated file>") {
         format!("{declaring} -> {reference}")
     } else {
-        std::path::Path::new(declaring)
-            .parent()
-            .unwrap_or(std::path::Path::new("."))
-            .join(reference)
-            .display()
-            .to_string()
+        key_spelling(
+            &std::path::Path::new(declaring)
+                .parent()
+                .unwrap_or(std::path::Path::new("."))
+                .join(reference)
+                .display()
+                .to_string(),
+        )
     }
 }
 
@@ -9269,13 +9272,13 @@ mod tests {
                 .parent()
                 .unwrap()
                 .join(pattern.split('*').next().unwrap());
-            let prefix = prefix.to_str().unwrap();
+            let prefix = super::key_spelling(prefix.to_str().unwrap());
             let files: Vec<_> = self
                 .0
                 .0
                 .iter()
                 .filter(|(path, _)| {
-                    path.starts_with(prefix)
+                    path.starts_with(&prefix)
                         && std::path::Path::new(path)
                             .extension()
                             .is_some_and(|ext| ext == "yaml")
@@ -10257,7 +10260,7 @@ mod tests {
                 .parent()
                 .unwrap()
                 .join(reference);
-            let path = path.to_str().unwrap().to_owned();
+            let path = super::key_spelling(path.to_str().unwrap());
             Ok(crate::ComposeResolvedFile {
                 contents: self
                     .0
