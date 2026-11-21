@@ -900,7 +900,10 @@ async fn raw_https_request_cancellation_closes_the_tls_connection() -> Result<()
     let cancelled = tokio::time::timeout(Duration::from_millis(200), raw::info(&engine)).await;
     assert!(cancelled.is_err(), "the fixture must not answer");
 
-    let deadline = Instant::now() + Duration::from_secs(3);
+    // Closure is the property; the bound is only a harness guard. Windows
+    // runners can take longer than a few seconds to report the peer close
+    // under load, which is not a failure of the client.
+    let deadline = Instant::now() + Duration::from_secs(10);
     let outcome = loop {
         if let Some(outcome) = fixture.fixture.close_outcome() {
             break outcome;
