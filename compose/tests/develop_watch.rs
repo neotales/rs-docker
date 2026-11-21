@@ -102,11 +102,7 @@ fn develop_survives_overrides_and_extends() {
     .unwrap();
     assert_eq!(
         project.services["web"].develop.as_ref().unwrap().watch[0].path,
-        std::env::current_dir()
-            .unwrap()
-            .join("src")
-            .to_str()
-            .unwrap()
+        model_path(&std::env::current_dir().unwrap().join("src"))
     );
     let project = parse("services:\n  base:\n    image: alpine\n    develop:\n      watch:\n        - path: src\n          action: rebuild\n  child:\n    extends: {service: base}\n").unwrap();
     assert_eq!(
@@ -133,7 +129,7 @@ fn watch_paths_render_absolute_and_exec_string_as_argv() {
     let rendered = ComposeConfigRenderer::render_yaml(&project);
     let path = std::env::current_dir().unwrap().join("src");
     assert!(
-        rendered.contains(&format!("path: {}", path.display())),
+        rendered.contains(&format!("path: {}", model_path(&path))),
         "{rendered}"
     );
     assert!(
@@ -154,5 +150,15 @@ fn sync_exec_requires_a_command() {
         );
         let error = parse(&source).unwrap_err();
         assert!(error.path().contains("watch[0].exec.command"), "{error}");
+    }
+}
+
+/// The model uses Compose's `/` spelling on every host.
+fn model_path(path: &std::path::Path) -> String {
+    let text = path.display().to_string();
+    if std::path::MAIN_SEPARATOR == '/' {
+        text
+    } else {
+        text.replace(std::path::MAIN_SEPARATOR, "/")
     }
 }
