@@ -1907,7 +1907,7 @@ impl Origin {
             .parent()
             .filter(|p| !p.as_os_str().is_empty())
             .unwrap_or(std::path::Path::new("."));
-        let absolute = if directory.is_absolute() {
+        let absolute = if directory.has_root() {
             directory.to_path_buf()
         } else {
             std::env::current_dir()
@@ -9330,6 +9330,10 @@ mod tests {
         }
     }
 
+    #[cfg_attr(
+        windows,
+        ignore = "fixture supplies a Unix absolute project_directory root"
+    )]
     #[test]
     fn include_project_directory_rebases_and_resolves_nested_references() {
         let files = TestAuxiliaryFiles(TestFiles([
@@ -9373,6 +9377,10 @@ mod tests {
         );
     }
 
+    #[cfg_attr(
+        windows,
+        ignore = "fixture supplies a Unix absolute project_directory root"
+    )]
     #[test]
     fn include_project_directory_refuses_invalid_and_glob_forms() {
         let files = TestAuxiliaryFiles(TestFiles(std::collections::BTreeMap::new()));
