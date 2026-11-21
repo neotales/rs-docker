@@ -3461,6 +3461,10 @@ mod tests {
         assert_eq!(&byte, b"z");
     }
 
+    #[cfg_attr(
+        not(target_os = "linux"),
+        ignore = "socket-pressure fixture needs Linux EAGAIN semantics; see ci.yml"
+    )]
     #[tokio::test]
     async fn real_write_would_block_clears_readiness_and_wakes_after_drain() {
         use std::io::Write as _;

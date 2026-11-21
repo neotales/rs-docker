@@ -2175,7 +2175,7 @@ impl PendingProject {
                     for part in components(&path) {
                         absolute.push(part);
                     }
-                    rule.path = absolute.to_string_lossy().into_owned();
+                    rule.path = key_spelling(&absolute.to_string_lossy());
                 }
             }
             pending.service.develop = pending.paths.develop.map(|entry| entry.value);
