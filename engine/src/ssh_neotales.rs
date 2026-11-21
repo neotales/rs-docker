@@ -9402,6 +9402,10 @@ mod tests {
         supervisor.finish().await;
     }
 
+    #[cfg_attr(
+        not(target_os = "linux"),
+        ignore = "socket-pressure fixture needs Linux EAGAIN semantics; see ci.yml"
+    )]
     #[tokio::test(start_paused = true)]
     async fn full_fifo_wakes_on_write_and_reads_buffered_ninth_without_new_read_edge() {
         use std::io::Read as _;
@@ -9488,6 +9492,10 @@ mod tests {
         supervisor.finish().await;
     }
 
+    #[cfg_attr(
+        not(target_os = "linux"),
+        ignore = "socket-pressure fixture needs Linux EAGAIN semantics; see ci.yml"
+    )]
     #[tokio::test(start_paused = true)]
     async fn partial_reply_and_full_fifo_are_terminal_on_failure_or_cancellation() {
         use std::task::{Context, Poll, Waker};
@@ -9577,6 +9585,10 @@ mod tests {
     /// Retained application events are injected at the private application
     /// backpressure boundary, as in the retained-event credit test. Peer
     /// KEXINIT is authenticated through the actual owned read path.
+    #[cfg_attr(
+        not(target_os = "linux"),
+        ignore = "socket-pressure fixture needs Linux EAGAIN semantics; see ci.yml"
+    )]
     #[tokio::test(start_paused = true)]
     #[allow(clippy::too_many_lines)] // One matrix checks both retained owners and both terminal causes.
     async fn retained_event_and_peer_kexinit_are_dropped_on_cancel_or_fatal_io() {

@@ -1968,7 +1968,11 @@ pub(crate) mod tests {
             let (stream, _) = listener.accept().await?;
             let mut stream = TlsAcceptor::from(config).accept(stream).await?;
             let _request = read_headers(&mut stream).await?;
-            tokio::time::sleep(Duration::from_millis(1500)).await;
+            // The handshake must finish inside the establishment deadline; the
+            // body must not. Keep a wide gap between the two so a loaded
+            // Windows or macOS runner does not turn a scheduling delay into a
+            // handshake timeout, which is not the property under test.
+            tokio::time::sleep(Duration::from_secs(6)).await;
             stream
                 .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\n{}")
                 .await?;
@@ -1980,11 +1984,11 @@ pub(crate) mod tests {
             &material,
             &ProxyPolicy::Direct,
             super::TlsServerTrust::Verify,
-            Duration::from_secs(1),
+            Duration::from_secs(5),
         )?;
         let engine = crate::raw::RawEngine::new(target, crate::API_VERSION);
         let document =
-            tokio::time::timeout(Duration::from_secs(5), crate::raw::info(&engine)).await??;
+            tokio::time::timeout(Duration::from_secs(15), crate::raw::info(&engine)).await??;
         server.abort();
         assert_eq!(document, serde_json::json!({}));
         Ok(())
