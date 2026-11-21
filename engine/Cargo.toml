@@ -1,7 +1,7 @@
 [package]
 name = "neotales-docker"
 description = "Repository-native Docker Engine API client"
-version = "0.0.0-alpha.0"
+version = "0.0.0-alpha.1"
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
@@ -42,8 +42,11 @@ base64.workspace = true
 bytes.workspace = true
 # The BuildKit crate is the other crate in this repository. The version is
 # required as well as the path: cargo ignores the version while the path
-# resolves, and refuses to publish this crate without it.
-neotales-docker-buildkit = { path = "../buildkit", version = "=0.0.0-alpha.0" }
+# resolves, and refuses to publish this crate without it. It is an exact
+# requirement on purpose: the two crates share a version and are released from
+# one tag, so the engine must never resolve a BuildKit build that is not the
+# one from the same tree.
+neotales-docker-buildkit = { path = "../buildkit", version = "=0.0.0-alpha.1" }
 futures-core.workspace = true
 futures-util.workspace = true
 getrandom.workspace = true

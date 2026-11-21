@@ -1,7 +1,7 @@
 [package]
 name = "neotales-docker-compose"
 description = "Explicit, daemon-free Compose document and resolution primitives"
-version = "0.0.0-alpha.0"
+version = "0.0.0-alpha.1"
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true

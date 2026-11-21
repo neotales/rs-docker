@@ -1168,7 +1168,7 @@ dependencies = [
 
 [[package]]
 name = "neotales-docker"
-version = "0.0.0-alpha.0"
+version = "0.0.0-alpha.1"
 dependencies = [
  "base64 0.22.1",
  "bytes",
@@ -1207,7 +1207,7 @@ dependencies = [
 
 [[package]]
 name = "neotales-docker-bake"
-version = "0.0.0-alpha.0"
+version = "0.0.0-alpha.1"
 dependencies = [
  "indexmap",
  "neotales-dotenv",
@@ -1221,7 +1221,7 @@ dependencies = [
 
 [[package]]
 name = "neotales-docker-buildkit"
-version = "0.0.0-alpha.0"
+version = "0.0.0-alpha.1"
 dependencies = [
  "serde",
  "serde_json",
@@ -1232,7 +1232,7 @@ dependencies = [
 
 [[package]]
 name = "neotales-docker-compose"
-version = "0.0.0-alpha.0"
+version = "0.0.0-alpha.1"
 dependencies = [
  "indexmap",
  "neotales-dotenv",
@@ -1273,7 +1273,7 @@ checksum = "7042a153487c24946a4f1af3e569dab9388b7ceb0eb2460c4d2c2d76526bd479"
 
 [[package]]
 name = "neotales-oci-distribution"
-version = "0.0.0-alpha.0"
+version = "0.0.0-alpha.1"
 dependencies = [
  "base64 0.22.1",
  "sha2 0.10.9",

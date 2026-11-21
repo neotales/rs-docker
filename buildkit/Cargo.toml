@@ -1,7 +1,7 @@
 [package]
 name = "neotales-docker-buildkit"
 description = "Explicit BuildKit builder and solve contracts with a fixture adapter"
-version = "0.0.0-alpha.0"
+version = "0.0.0-alpha.1"
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
