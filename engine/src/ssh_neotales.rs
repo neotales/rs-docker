@@ -3309,6 +3309,10 @@ mod tests {
         }
     }
 
+    #[cfg_attr(
+        not(target_os = "linux"),
+        ignore = "socket-pressure fixture needs Linux EAGAIN semantics; see ci.yml"
+    )]
     #[tokio::test]
     async fn two_independent_write_waiters_are_both_woken() {
         use std::io::Write as _;
