@@ -14,7 +14,14 @@ readme = "README.md"
 # `license` field above.
 include = ["/Cargo.toml", "/README.md", "/LICENSE.md", "/src/**", "/tests/**", "/docs/**"]
 keywords = ["oci", "registry", "container", "digest", "distribution"]
-categories = ["container-tools", "cryptography", "web-programming::http"]
+# Slugs from the registry's category index: the top-level list at
+# `https://crates.io/api/v1/categories` plus each entry's `subcategories`.
+# `container-tools` is not a slug at all, and `web-programming::http` is not
+# one of that category's children (`http-client`, `http-server`, `websocket`),
+# so crates.io rejects either at upload. The registry protocol is the crate's
+# subject, reference and digest parsing is how it reads a reference, and the
+# digests and credential policy are the cryptographic part.
+categories = ["network-programming", "parser-implementations", "cryptography"]
 
 [dependencies]
 base64.workspace = true
